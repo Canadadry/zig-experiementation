@@ -58,6 +58,7 @@ const Lexer = struct{
 			l.readChar();
 		}
 		var tok = Token.init(.eof,"",l.current);
+		tok.literal[0]=l.ch;
 		switch(l.ch){
 			0 => {},
 			'('=>{
@@ -84,7 +85,7 @@ const Lexer = struct{
 			},
 			'/'=>{
 				tok.type = .slash;
-				if(l.peekChar() == '*'){
+				if(l.peekChar() == '/'){
 					l.readChar();
 					tok = Token.init(.double_slash,"//",tok.pos);
 				}
@@ -98,7 +99,7 @@ const Lexer = struct{
 					if (len>maxLiteralLen){
 						tok.type = .too_long_number;
 						bound.end = bound.start+maxLiteralLen-1;
-						len=maxLiteralLen;
+						len=maxLiteralLen-1;
 					}
 					@memcpy( tok.literal[0..len],l.source[bound.start..bound.end], );
 				}
@@ -128,6 +129,8 @@ const Lexer = struct{
     		l.readChar();
     	}
     	bound.end = l.current;
+     	l.current -=1;
+     	l.read -=1;
     	return bound;
     }
 };
@@ -137,7 +140,7 @@ pub fn isWhiteSpace(ch:u8) bool {
 }
 
 pub fn isNumeric(ch:u8) bool {
-    return ch >= '0' and ch <= '9' and ch == '.';
+    return  (ch >= '0' and ch <= '9') or ch == '.';
 }
 
 test "lexer get all tokens" {
@@ -154,13 +157,13 @@ test "lexer get all tokens" {
         Token.init(.number, "12.32",12),
         Token.init(.percent, "%",17),
         Token.init(.illegal, "#",18),
-        Token.init(.too_long_number, "1234567890123456789012345",19),
+        Token.init(.too_long_number, "123456789012345678901234",19),
         Token.init(.eof, "",49),
     };
 
     var lexer = Lexer.init(testedString);
     var i:usize = 0;
-    while (true) : (i+=1) {
+    while (true)  {
         var tok = lexer.getNextToken();
         if (
             tok.type !=  expectedTokens[i].type
@@ -169,12 +172,13 @@ test "lexer get all tokens" {
             std.debug.print("failed at \"{d}\"\nexp: \"{}\",\ngot: \"{}\"\n", .{ i,expectedTokens[i],tok });
             return error.TestFailure;
         }
+        i+=1;
         if(tok.type == .eof){
             break;
         }
     }
     if(i!=expectedTokens.len){
-        std.debug.print("failed found \"{d}\" token want \"{d}\"\n", .{ i,expectedTokens.len });
+        std.debug.print("failed found \"{d}\" tokens want \"{d}\"\n", .{ i,expectedTokens.len });
         return error.TestFailure;
     }
 }
