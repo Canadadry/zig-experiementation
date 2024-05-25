@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const maxLiteralLen = 25;
+
 const TokenType = enum{
     left_par,right_par,
     plus,star,slash,minus,
@@ -9,6 +10,7 @@ const TokenType = enum{
     illegal,
     eof,
 };
+
 const Token = struct{
     type: TokenType,
     literal: [maxLiteralLen]u8,
@@ -29,17 +31,66 @@ const Token = struct{
     }
 };
 
+const Bound = struct{
+    start: usize,
+    end: usize,
+};
+
 const Lexer = struct{
-    pub fn init(_:[]const u8) Lexer{
-        return .{};
+    source:  []const u8,
+    current: usize,
+    read:    usize,
+    ch:      u8,
+
+    pub fn init(source:[]const u8) Lexer{
+        var l= Lexer{
+            .source=source,
+            .current=0,
+            .read=0,
+            .ch=0,
+        };
+        l.readChar();
+        return l;
     }
+
     pub fn getNextToken(_:*Lexer)?Token{
         return null;
     }
+
+    pub fn readChar(l:*Lexer)void {
+        l.ch = l.peekChar();
+        l.current = l.read;
+        l.read=l.read+1;
+    }
+
+    pub fn peekChar(l:*Lexer) u8 {
+        var ch:u8=0;
+	    if(l.read < l.source.len){
+            ch = l.source[l.read];
+        }
+        return ch;
+    }
+
+    fn readNumericBound(l:*Lexer) Bound {
+        var bound = Bound{.start=l.current}
+    	for isNumeric(l.ch) {
+    		lexer.readChar()
+    	}
+    	bound.end = l.current;
+    	return bound
+    }
 };
 
+pub fn isWhiteSpace(ch:u8) bool {
+    return ch == ' ' or ch == '\t' or ch == '\r' or ch == '\n';
+}
+
+pub fn isNumeric(ch:u8) bool {
+    return ch >= '0' and ch <= '9' and ch == '.';
+}
+
 test "lexer get newt token" {
-    const testedString = "()+* /-**//\n12.32%#";
+    const testedString = "()+* /-**//\n12.32%#123456789012345678901234567890";
     const expectedTokens = [_]Token{
         try Token.init(.left_par, "(",0),
         try Token.init(.right_par, ")",1),
@@ -52,7 +103,8 @@ test "lexer get newt token" {
         try Token.init(.number, "12.32",12),
         try Token.init(.percent, "%",17),
         try Token.init(.illegal, "#",18),
-        try Token.init(.eof, "",19),
+        try Token.init(.too_long_number, "1234567890123456789012345",19),
+        try Token.init(.eof, "",49),
     };
 
     var lexer = Lexer.init(testedString);
