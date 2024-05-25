@@ -14,6 +14,8 @@ const ParseError = error {
 	NoPrefixFunction,
 	NoInfixFunction,
 	InvalidNumberFormat,
+	CannotAllocate,
+	UnexpectedTokenFound,
 };
 
 fn getPrecedence(t: token.Token) Precedence {
@@ -55,8 +57,11 @@ const Parser = struct {
         };
     }
 
-    fn addNode(self:*Parser,n:ast.Node) !*ast.Node{
+    fn addNode(self:*Parser,n:ast.Node) ParseError!*ast.Node{
     	self.node = n;
+     	if(self.current.type == .illegal){
+      		return ParseError.CannotAllocate;
+        }
      	return &self.node;
     }
 
@@ -65,7 +70,7 @@ const Parser = struct {
         self.next = self.lexer.getNextToken();
     }
 
-    fn moveToNextTokenIfTypeIs(self: *Parser,t:token.TokenType) !void {
+    fn moveToNextTokenIfTypeIs(self: *Parser,t:token.TokenType) ParseError!void {
     	if(!self.isNextTokenA(t)){
      		return error.UnexpectedTokenFound;
        }
@@ -88,7 +93,7 @@ const Parser = struct {
     	return getPrecedence(self.next);
 	}
 
-    pub fn parseExpression(self: *Parser, precedence: Precedence) !*ast.Node {
+    pub fn parseExpression(self: *Parser, precedence: Precedence) ParseError!*ast.Node {
         const prefixFn = getPrefixParseFn(self.current) orelse return error.NoPrefixFunction;
         var leftExp = try prefixFn(self);
         while (@intFromEnum(precedence) < @intFromEnum(self.getNextPrecedence())) {
@@ -99,14 +104,14 @@ const Parser = struct {
         return leftExp;
     }
 
-    fn parsePrefixExpression(self: *Parser) !*ast.Node {
+    fn parsePrefixExpression(self: *Parser) ParseError!*ast.Node {
         const op = ast.getPrefixFn(self.current.type) orelse return error.NoPrefixFunction;
         self.moveToNextToken();
         const value = try self.parseExpression(.prefix);
         return self.addNode(ast.Node{.prefix=ast.Prefix{ .value = value, .op = op }});
     }
 
-    fn parseInfixExpression(self: *Parser, left: *ast.Node) !*ast.Node {
+    fn parseInfixExpression(self: *Parser, left: *ast.Node) ParseError!*ast.Node {
         const op = ast.getInfixFn(self.current.type) orelse return error.NoInfixFunction;
         const precedence = self.getCurrentPrecedence();
         self.moveToNextToken();
@@ -114,7 +119,7 @@ const Parser = struct {
         return self.addNode(ast.Node{.infix=ast.Infix{ .left = left, .right = right, .op = op }});
     }
 
-    pub fn parseGroupedExpression(self: *Parser) !*ast.Node {
+    pub fn parseGroupedExpression(self: *Parser) ParseError!*ast.Node {
         self.moveToNextToken();
         const exp = try self.parseExpression(.lowest);
 
@@ -123,7 +128,7 @@ const Parser = struct {
         return exp;
     }
 
-    pub fn parseFloatLiteral(self: *Parser) !*ast.Node {
+    pub fn parseFloatLiteral(self: *Parser) ParseError!*ast.Node {
         const value = std.fmt.parseFloat(f64, &self.current.literal) catch  {
             return error.InvalidNumberFormat;
         };
