@@ -7,7 +7,7 @@ const Bound = struct{
     end: usize,
 };
 
-const Lexer = struct{
+pub const Lexer = struct{
     source:  []const u8,
     current: usize,
     read:    usize,

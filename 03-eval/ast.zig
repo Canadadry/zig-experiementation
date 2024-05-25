@@ -1,12 +1,13 @@
 const std = @import("std");
+const token = @import("token.zig");
 
-const NodeType = enum {
+pub const NodeType = enum {
 	value,
 	infix,
 	prefix,
 };
 
-const Node = union(NodeType) {
+pub const Node = union(NodeType) {
 	value: f64,
 	infix: Infix,
 	prefix: Prefix,
@@ -20,7 +21,7 @@ const Node = union(NodeType) {
     }
 };
 
-const Infix = struct{
+pub const Infix = struct{
 	left:*const Node,
 	right:*const Node,
 	op:*const fn (l:f64,r:f64)f64,
@@ -30,23 +31,43 @@ const Infix = struct{
 	}
 };
 
-const Prefix = struct{
-	val:*const Node,
+pub const Prefix = struct{
+	value:*const Node,
 	op:*const fn (v:f64)f64,
 
 	pub fn eval(self: Prefix) f64 {
-		return self.op(self.val.eval());
+		return self.op(self.value.eval());
 	}
 };
 
-fn Add(l: f64, r: f64) f64 { return l + r; }
-fn Sub(l: f64, r: f64) f64 { return l - r; }
-fn Mul(l: f64, r: f64) f64 { return l * r; }
-fn Div(l: f64, r: f64) f64 { return l / r; }
-fn Mod(l: f64, r: f64) f64 { return @mod(l,r); }
-fn Pow(l: f64, r: f64) f64 { return l / r; }
-fn IntDiv(l: f64, r: f64) f64 { return @floor(l / r); }
-fn Neg(v: f64) f64 { return -v; }
+pub fn getInfixFn(t: token.TokenType) ?*const fn (f64,f64) f64 {
+    return switch (t) {
+    	.plus => Add,
+    	.minus => Sub,
+    	.star => Mul,
+    	.slash => Div,
+    	.percent => Mod,
+        .double_star => Pow,
+        .double_slash => IntDiv,
+        else => null,
+    };
+}
+
+pub fn getPrefixFn(t: token.TokenType) ?*const fn (f64) f64 {
+    return switch (t) {
+    	.minus => Neg,
+        else => null,
+    };
+}
+
+pub fn Add(l: f64, r: f64) f64 { return l + r; }
+pub fn Sub(l: f64, r: f64) f64 { return l - r; }
+pub fn Mul(l: f64, r: f64) f64 { return l * r; }
+pub fn Div(l: f64, r: f64) f64 { return l / r; }
+pub fn Mod(l: f64, r: f64) f64 { return @mod(l,r); }
+pub fn Pow(l: f64, r: f64) f64 { return l / r; }
+pub fn IntDiv(l: f64, r: f64) f64 { return @floor(l / r); }
+pub fn Neg(v: f64) f64 { return -v; }
 
 test "Node Evaluation" {
     const tests = [_]struct {
@@ -54,13 +75,13 @@ test "Node Evaluation" {
     	tree: Node,
     }{
         .{ .expected =  1.0 , .tree = Node{ .value = 1.0, }},
-        .{ .expected = -1.0 , .tree = Node{ .prefix = Prefix{ .val = &Node{ .value = 1.0 }, .op = Neg } }},
+        .{ .expected = -1.0 , .tree = Node{ .prefix = Prefix{ .value = &Node{ .value = 1.0 }, .op = Neg } }},
         .{ .expected =  3.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .value = 1.0 }, .right = &Node{ .value = 2.0 }, .op = Add } }},
         .{ .expected =  0.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .value = 1.0 }, .right = &Node{ .value = 1.0 }, .op = Sub } }},
         .{ .expected =  1.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .value = 1.0 }, .right = &Node{ .value = 1.0 }, .op = Mul } }},
         .{ .expected =  1.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .value = 1.0 }, .right = &Node{ .value = 1.0 }, .op = Div } }},
         .{ .expected =  1.5 , .tree = Node{ .infix = Infix{ .left = &Node{ .value = 3.0 }, .right = &Node{ .value = 2.0 }, .op = Div } }},
-        .{ .expected = -2.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .prefix = Prefix{ .val = &Node{ .value = 1.0 }, .op = Neg } }, .right = &Node{ .value = 2.0 }, .op = Mul } }},
+        .{ .expected = -2.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .prefix = Prefix{ .value = &Node{ .value = 1.0 }, .op = Neg } }, .right = &Node{ .value = 2.0 }, .op = Mul } }},
     };
 
     for (tests,0..) |tt, index| {
