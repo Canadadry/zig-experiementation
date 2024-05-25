@@ -42,7 +42,7 @@ fn getInfixParseFn(t: token.Token) ?*const fn(*Parser, *ast.Node) ParseError!*as
     };
 }
 
-const Parser = struct {
+pub const Parser = struct {
     lexer: *lexer.Lexer,
     current: token.Token,
     next: token.Token,
