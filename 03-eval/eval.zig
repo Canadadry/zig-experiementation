@@ -7,7 +7,7 @@ const TokenType = enum{
     plus,star,slash,minus,
     double_star,double_slash,percent,
     number,
-    illegal,
+    illegal,too_long_number,
     eof,
 };
 
@@ -72,12 +72,12 @@ const Lexer = struct{
     }
 
     fn readNumericBound(l:*Lexer) Bound {
-        var bound = Bound{.start=l.current}
-    	for isNumeric(l.ch) {
-    		lexer.readChar()
+        var bound = Bound{.start=l.current};
+    	while(isNumeric(l.ch)){
+    		l.readChar();
     	}
     	bound.end = l.current;
-    	return bound
+    	return bound;
     }
 };
 
