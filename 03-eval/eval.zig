@@ -1,35 +1,6 @@
 const std = @import("std");
+const token = @import("token.zig");
 
-const maxLiteralLen = 25;
-
-const TokenType = enum{
-	left_par,right_par,
-	plus,star,slash,minus,
-	double_star,double_slash,percent,
-	number,
-	illegal,too_long_number,
-	eof,
-};
-
-const Token = struct{
-    type: TokenType,
-    literal: [maxLiteralLen:0]u8,
-    pos: usize,
-
-    fn init(typ: TokenType, lit: []const u8, pos: usize) Token {
-        var literal: [maxLiteralLen:0]u8 = undefined;
-        const len = @min(lit.len, maxLiteralLen);
-        @memcpy( literal[0..len], lit);
-        if (len < maxLiteralLen) {
-            @memset(literal[len..], 0);
-        }
-        return Token{
-            .type = typ,
-            .literal = literal,
-            .pos = pos,
-        };
-    }
-};
 
 const Bound = struct{
     start: usize,
@@ -53,11 +24,11 @@ const Lexer = struct{
         return l;
     }
 
-    pub fn getNextToken(l:*Lexer)Token{
+    pub fn getNextToken(l:*Lexer)token.Token{
 		while(isWhiteSpace(l.ch)){
 			l.readChar();
 		}
-		var tok = Token.init(.eof,"",l.current);
+		var tok = token.Token.init(.eof,"",l.current);
 		tok.literal[0]=l.ch;
 		switch(l.ch){
 			0 => {},
@@ -80,14 +51,14 @@ const Lexer = struct{
 				tok.type = .star;
 				if(l.peekChar() == '*'){
 					l.readChar();
-					tok = Token.init(.double_star,"**",tok.pos);
+					tok = token.Token.init(.double_star,"**",tok.pos);
 				}
 			},
 			'/'=>{
 				tok.type = .slash;
 				if(l.peekChar() == '/'){
 					l.readChar();
-					tok = Token.init(.double_slash,"//",tok.pos);
+					tok = token.Token.init(.double_slash,"//",tok.pos);
 				}
 			},
 			else=>{
@@ -96,10 +67,10 @@ const Lexer = struct{
 					tok.type = .number;
 					var bound = l.readNumericBound();
 					var len = bound.end-bound.start;
-					if (len>maxLiteralLen){
+					if (len>token.maxLiteralLen){
 						tok.type = .too_long_number;
-						bound.end = bound.start+maxLiteralLen-1;
-						len=maxLiteralLen-1;
+						bound.end = bound.start+token.maxLiteralLen-1;
+						len=token.maxLiteralLen-1;
 					}
 					@memcpy( tok.literal[0..len],l.source[bound.start..bound.end], );
 				}
@@ -145,20 +116,20 @@ pub fn isNumeric(ch:u8) bool {
 
 test "lexer get all tokens" {
     const testedString = "()+* /-**//\n12.32%#123456789012345678901234567890";
-    const expectedTokens = [_]Token{
-        Token.init(.left_par, "(",0),
-        Token.init(.right_par, ")",1),
-        Token.init(.plus, "+",2),
-        Token.init(.star, "*",3),
-        Token.init(.slash, "/",5),
-        Token.init(.minus, "-",6),
-        Token.init(.double_star, "**",7),
-        Token.init(.double_slash, "//",9),
-        Token.init(.number, "12.32",12),
-        Token.init(.percent, "%",17),
-        Token.init(.illegal, "#",18),
-        Token.init(.too_long_number, "123456789012345678901234",19),
-        Token.init(.eof, "",49),
+    const expectedTokens = [_]token.Token{
+        token.Token.init(.left_par, "(",0),
+        token.Token.init(.right_par, ")",1),
+        token.Token.init(.plus, "+",2),
+        token.Token.init(.star, "*",3),
+        token.Token.init(.slash, "/",5),
+        token.Token.init(.minus, "-",6),
+        token.Token.init(.double_star, "**",7),
+        token.Token.init(.double_slash, "//",9),
+        token.Token.init(.number, "12.32",12),
+        token.Token.init(.percent, "%",17),
+        token.Token.init(.illegal, "#",18),
+        token.Token.init(.too_long_number, "123456789012345678901234",19),
+        token.Token.init(.eof, "",49),
     };
 
     var lexer = Lexer.init(testedString);
