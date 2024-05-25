@@ -13,11 +13,11 @@ const TokenType = enum{
 
 const Token = struct{
     type: TokenType,
-    literal: [maxLiteralLen]u8,
+    literal: [maxLiteralLen:0]u8,
     pos: usize,
 
     fn init(typ: TokenType, lit: []const u8, pos: usize) Token {
-        var literal: [maxLiteralLen]u8 = undefined;
+        var literal: [maxLiteralLen:0]u8 = undefined;
         const len = @min(lit.len, maxLiteralLen);
         @memcpy( literal[0..len], lit);
         if (len < maxLiteralLen) {
