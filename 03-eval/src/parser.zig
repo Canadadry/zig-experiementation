@@ -46,29 +46,31 @@ pub const Parser = struct {
     lexer: *lexer.Lexer,
     current: token.Token,
     next: token.Token,
-    nodes:std.ArrayList(ast.Node),
+    head:?*ast.Node,
+    allocator:std.mem.Allocator,
 
     pub fn init(allocator:std.mem.Allocator,l: *lexer.Lexer) !Parser {
-        var  p=  Parser{
+        return Parser{
             .lexer = l,
             .current = l.getNextToken(),
             .next = l.getNextToken(),
-            .nodes = std.ArrayList(ast.Node).init(allocator),
+            .allocator = allocator,
+            .head = null,
         };
-        try p.nodes.ensureUnusedCapacity(l.source.len);
-        return p;
     }
 
-    pub fn deinit(self:*Parser) void{
-    	self.nodes.deinit();
-    }
+	pub fn deinit(self:*Parser) void{
+		if(self.head) |h|{
+			h.free(self.allocator);
+			self.head = null;
+		}
+	}
 
     fn addNode(self:*Parser,n:ast.Node) ParseError!*ast.Node{
-     	self.nodes.append(n) catch |err| {
+     	return ast.allocate(self.allocator,n) catch |err| {
       		std.debug.print("cannot allocate {}\n",.{err});
       		return ParseError.CannotAllocate;
         };
-     	return &self.nodes.items[self.nodes.items.len-1];
     }
 
     fn moveToNextToken(self: *Parser) void {
@@ -99,7 +101,16 @@ pub const Parser = struct {
     	return getPrecedence(self.next);
 	}
 
-    pub fn parseExpression(self: *Parser, precedence: Precedence) ParseError!*ast.Node {
+	pub fn parse(self: *Parser) ParseError!*ast.Node{
+ 		if(self.head) |h|{
+   			return h;
+        }
+        const head = try self.parseExpression(.lowest);
+        self.head = head;
+        return head;
+	}
+
+    fn parseExpression(self: *Parser, precedence: Precedence) ParseError!*ast.Node {
         const prefixFn = getPrefixParseFn(self.current) orelse return error.NoPrefixFunction;
         var leftExp = try prefixFn(self);
         while (@intFromEnum(precedence) < @intFromEnum(self.getNextPrecedence())) {
@@ -145,10 +156,8 @@ pub const Parser = struct {
 
 
 test "Node Evaluation" {
-	var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
-    const tests = [_]struct {
+	const allocator = std.testing.allocator;
+	const tests = [_]struct {
     	expected: f64,
     	expression: []const u8,
     }{
@@ -170,7 +179,7 @@ test "Node Evaluation" {
             return err;
         };
         defer parser.deinit();
-        const node = parser.parseExpression(.lowest) catch |err| {
+        const node = parser.parse() catch |err| {
             std.debug.print("failed at index {d}: return error {}", .{ index, err });
             return err;
         };

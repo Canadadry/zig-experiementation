@@ -7,6 +7,12 @@ pub const NodeType = enum {
 	prefix,
 };
 
+pub fn allocate(alloc:std.mem.Allocator,n:Node) !*Node{
+		const node = try alloc.alloc(Node, 1);
+		node[0] = n;
+		return &node[0];
+}
+
 pub const Node = union(NodeType) {
 	value: f64,
 	infix: Infix,
@@ -19,11 +25,25 @@ pub const Node = union(NodeType) {
             .prefix => |p| return p.eval(),
         }
     }
+
+    pub fn free(self: *Node,alloc:std.mem.Allocator) void {
+        switch (self.*) {
+            .infix => |i| {
+           		i.left.free(alloc);
+            	i.right.free(alloc);
+            },
+            .prefix => |p| {
+           		p.value.free(alloc);
+            },
+            else => {},
+        }
+        alloc.free(self[0..0]);
+    }
 };
 
 pub const Infix = struct{
-	left:*const Node,
-	right:*const Node,
+	left:*Node,
+	right:*Node,
 	op:*const fn (l:f64,r:f64)f64,
 
 	pub fn eval(self: Infix) f64 {
@@ -32,7 +52,7 @@ pub const Infix = struct{
 };
 
 pub const Prefix = struct{
-	value:*const Node,
+	value:*Node,
 	op:*const fn (v:f64)f64,
 
 	pub fn eval(self: Prefix) f64 {
@@ -70,22 +90,65 @@ pub fn IntDiv(l: f64, r: f64) f64 { return @floor(l / r); }
 pub fn Neg(v: f64) f64 { return -v; }
 
 test "Node Evaluation" {
+	const allocator = std.testing.allocator;
+
     const tests = [_]struct {
     	expected: f64,
-    	tree: Node,
+    	tree: *Node,
     }{
-        .{ .expected =  1.0 , .tree = Node{ .value = 1.0, }},
-        .{ .expected = -1.0 , .tree = Node{ .prefix = Prefix{ .value = &Node{ .value = 1.0 }, .op = Neg } }},
-        .{ .expected =  3.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .value = 1.0 }, .right = &Node{ .value = 2.0 }, .op = Add } }},
-        .{ .expected =  0.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .value = 1.0 }, .right = &Node{ .value = 1.0 }, .op = Sub } }},
-        .{ .expected =  1.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .value = 1.0 }, .right = &Node{ .value = 1.0 }, .op = Mul } }},
-        .{ .expected =  1.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .value = 1.0 }, .right = &Node{ .value = 1.0 }, .op = Div } }},
-        .{ .expected =  1.5 , .tree = Node{ .infix = Infix{ .left = &Node{ .value = 3.0 }, .right = &Node{ .value = 2.0 }, .op = Div } }},
-        .{ .expected = -2.0 , .tree = Node{ .infix = Infix{ .left = &Node{ .prefix = Prefix{ .value = &Node{ .value = 1.0 }, .op = Neg } }, .right = &Node{ .value = 2.0 }, .op = Mul } }},
+        .{
+        	.expected =  1.0 ,
+        	.tree = try allocate(allocator,Node{ .value = 1.0, })
+         },
+        .{
+        	.expected = -1.0 ,
+        	.tree = try allocate(allocator,Node{
+         		.prefix = Prefix{
+           			.value = try allocate(allocator,Node{ .value = 1.0 }),
+              		.op = Neg
+                }
+            })
+        },
+        .{
+        	.expected =  3.0 ,
+        	.tree = try allocate(allocator,Node{
+         		.infix = Infix{
+           			.left = try allocate(allocator,Node{ .value = 1.0 }),
+              		.right = try allocate(allocator,Node{ .value = 2.0 }),
+                	.op = Add
+                 }
+            })
+        },
+        .{
+        	.expected =  0.0 ,
+        	.tree = try allocate(allocator,Node{
+         		.infix = Infix{
+           			.left = try allocate(allocator,Node{ .value = 1.0 }),
+              		.right = try allocate(allocator,Node{ .value = 1.0 }),
+                	.op = Sub
+                 }
+            })
+        },
+        .{
+        	.expected = -2.0 ,
+        	.tree = try allocate(allocator,Node{
+         		.infix = Infix{
+           			.left = try allocate(allocator,Node{
+              			.prefix = Prefix{
+                 			.value = try allocate(allocator,Node{ .value = 1.0 }),
+                  			.op = Neg
+                    	}
+                     }),
+                    .right = try allocate(allocator,Node{ .value = 2.0 }),
+                    .op = Mul
+                 }
+            })
+        },
     };
 
     for (tests,0..) |tt, index| {
         const result = tt.tree.eval();
+        tt.tree.free(allocator);
         if (result != tt.expected) {
             std.testing.expectEqual(tt.expected, result) catch |err| {
                 std.debug.print("failed at index {d}: expected {}, but got {}", .{ index, tt.expected, result });
