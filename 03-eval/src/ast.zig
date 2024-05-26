@@ -8,9 +8,9 @@ pub const NodeType = enum {
 };
 
 pub fn allocate(alloc:std.mem.Allocator,n:Node) !*Node{
-		const node = try alloc.alloc(Node, 1);
-		node[0] = n;
-		return &node[0];
+		const node = try alloc.create(Node);
+		node.* = n;
+		return node;
 }
 
 pub const Node = union(NodeType) {
@@ -37,7 +37,7 @@ pub const Node = union(NodeType) {
             },
             else => {},
         }
-        alloc.free(self[0..0]);
+        alloc.destroy(self);
     }
 };
 
