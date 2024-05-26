@@ -46,23 +46,29 @@ pub const Parser = struct {
     lexer: *lexer.Lexer,
     current: token.Token,
     next: token.Token,
-    node:ast.Node,
+    nodes:std.ArrayList(ast.Node),
 
-    pub fn init(l: *lexer.Lexer) Parser {
-        return Parser{
+    pub fn init(allocator:std.mem.Allocator,l: *lexer.Lexer) !Parser {
+        var  p=  Parser{
             .lexer = l,
             .current = l.getNextToken(),
             .next = l.getNextToken(),
-            .node = ast.Node{.value=0.0},
+            .nodes = std.ArrayList(ast.Node).init(allocator),
         };
+        try p.nodes.ensureUnusedCapacity(l.source.len);
+        return p;
+    }
+
+    pub fn deinit(self:*Parser) void{
+    	self.nodes.deinit();
     }
 
     fn addNode(self:*Parser,n:ast.Node) ParseError!*ast.Node{
-    	self.node = n;
-     	if(self.current.type == .illegal){
+     	self.nodes.append(n) catch |err| {
+      		std.debug.print("cannot allocate {}\n",.{err});
       		return ParseError.CannotAllocate;
-        }
-     	return &self.node;
+        };
+     	return &self.nodes.items[self.nodes.items.len-1];
     }
 
     fn moveToNextToken(self: *Parser) void {
@@ -139,6 +145,9 @@ pub const Parser = struct {
 
 
 test "Node Evaluation" {
+	var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
     const tests = [_]struct {
     	expected: f64,
     	expression: []const u8,
@@ -155,7 +164,11 @@ test "Node Evaluation" {
 
     for (tests,0..) |tt, index| {
     	var l = lexer.Lexer.init(tt.expression);
-        var parser = Parser.init(&l);
+        var parser = Parser.init(allocator,&l) catch |err| {
+            std.debug.print("cannot allocate parser at index {d}: return error {}", .{ index, err });
+            return err;
+        };
+        defer parser.deinit();
         const node = parser.parseExpression(.lowest) catch |err| {
             std.debug.print("failed at index {d}: return error {}", .{ index, err });
             return err;
