@@ -23,7 +23,8 @@ fn run() !void{
 	}
 
 	var l = lexer.Lexer.init(args[1]);
-	var p = parser.Parser.init(&l);
+	var p = try parser.Parser.init(alloc,&l);
+	defer p.deinit();
  	const node = try p.parseExpression(.lowest);
   	std.debug.print("{}\n",.{node.eval()});
 }
