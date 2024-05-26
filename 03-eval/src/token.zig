@@ -13,6 +13,7 @@ pub const Token = struct{
     type: TokenType,
     literal: [maxLiteralLen:0]u8,
     pos: usize,
+    len: usize,
 
     pub fn init(typ: TokenType, lit: []const u8, pos: usize) Token {
         var literal: [maxLiteralLen:0]u8 = undefined;
@@ -25,6 +26,7 @@ pub const Token = struct{
             .type = typ,
             .literal = literal,
             .pos = pos,
+            .len = len,
         };
     }
 };

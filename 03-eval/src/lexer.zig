@@ -28,8 +28,8 @@ pub const Lexer = struct{
 		while(isWhiteSpace(l.ch)){
 			l.readChar();
 		}
-		var tok = token.Token.init(.eof,"",l.current);
-		tok.literal[0]=l.ch;
+		var chAsStr = [_]u8{l.ch};
+		var tok = token.Token.init(.eof,chAsStr[0..],l.current);
 		switch(l.ch){
 			0 => {},
 			'('=>{
@@ -73,6 +73,7 @@ pub const Lexer = struct{
 						len=token.maxLiteralLen-1;
 					}
 					@memcpy( tok.literal[0..len],l.source[bound.start..bound.end], );
+					tok.len = len;
 				}
 			},
 		}

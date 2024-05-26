@@ -135,7 +135,7 @@ pub const Parser = struct {
     }
 
     pub fn parseFloatLiteral(self: *Parser) ParseError!*ast.Node {
-        const value = std.fmt.parseFloat(f64, &self.current.literal) catch  {
+        const value = std.fmt.parseFloat(f64, self.current.literal[0..self.current.len]) catch  {
             return error.InvalidNumberFormat;
         };
         return self.addNode(ast.Node{ .value = value });
@@ -160,6 +160,7 @@ test "Node Evaluation" {
         .{ .expected =  1.0 , .expression = "1/1"},
         .{ .expected =  1.5 , .expression = "3/2"},
         .{ .expected = -2.0 , .expression = "-1*2"},
+        .{ .expected = 26 , .expression = "2*(3+2*5)"},
     };
 
     for (tests,0..) |tt, index| {
