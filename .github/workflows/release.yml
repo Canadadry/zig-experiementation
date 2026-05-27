@@ -4,6 +4,10 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-macos:
     runs-on: macos-latest
@@ -12,7 +16,7 @@ jobs:
         working-directory: 05-raylib
     steps:
       - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v1
+      - uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.16.0
       - run: zig build -Doptimize=ReleaseFast
@@ -28,7 +32,7 @@ jobs:
         working-directory: 05-raylib
     steps:
       - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v1
+      - uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.16.0
       - run: sudo apt-get install -y libraylib-dev libgl-dev libx11-dev
