@@ -3,7 +3,6 @@ const std = @import("std");
 pub fn is_parenthesis_valid(str: []const u8) bool {
     var count: i32 = 0;
     for (0..str.len) |i| {
-        //std.debug.print("at {d} got {u}\n",.{i,str[i]});
         if (str[i] == '(') {
             count = count + 1;
         } else {
@@ -28,11 +27,11 @@ test "is_parenthesis" {
 		.{.case="()(()",.exp=false,},
 	};
 
-	for(tests)|tt|{
-		const result =is_parenthesis_valid(tt.case);
-		if(tt.exp != result) {
-			std.debug.print("test {s} failed want {} got {}\n",.{tt.case,tt.exp, result});
-			return error.TestFailure;
-		}
-	}
+    for (tests) |tt| {
+        const result = is_parenthesis_valid(tt.case);
+        std.testing.expectEqual(tt.exp, result) catch |err| {
+            std.debug.print("FAIL [{s}]: expected {}, got {}\n", .{ tt.case, tt.exp, result });
+            return err;
+        };
+    }
 }
