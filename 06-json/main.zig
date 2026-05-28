@@ -41,3 +41,16 @@ test "json parse" {
     try std.testing.expectEqual(place.lat, 40.684540);
     try std.testing.expectEqual(place.long, -74.401422);
 }
+
+test "json embeding" {
+    const parsed = try std.json.parseFromSlice(
+        []Place,
+        std.testing.allocator,
+        @embedFile("places.json"),
+        .{},
+    );
+    defer parsed.deinit();
+    for (parsed.value) |p| {
+        try std.testing.expectEqual(p.long, -74.401422);
+    }
+}
