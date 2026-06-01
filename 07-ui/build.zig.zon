@@ -1,0 +1,12 @@
+.{
+    .name = ._07_ui,
+    .version = "0.16.0",
+    .dependencies = .{
+        .zui = .{
+            .url = "https://github.com/Canadadry/zui/archive/refs/heads/master.tar.gz",
+            .hash = "zui-0.1.0-8b_52bwhAQAcVH_rvr4RgNfH5cRQMugH5qTusSBgh8gd",
+        },
+    },
+    .paths = .{""},
+    .fingerprint = 0x81015edd07944c7d,
+}
