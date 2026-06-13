@@ -18,6 +18,13 @@ pub fn build(b: *std.Build) void {
 
     exe.root_module.addImport("zui", zui_dep.module("zui"));
 
+    const ztext_dep = b.dependency("ztext", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe.root_module.addImport("ztext", ztext_dep.module("ztext"));
+
     exe.root_module.addIncludePath(b.path("vendor/raylib"));
     exe.root_module.link_libc = true;
 

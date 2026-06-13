@@ -4,7 +4,11 @@
     .dependencies = .{
         .zui = .{
             .url = "https://github.com/Canadadry/zui/archive/refs/heads/master.tar.gz",
-            .hash = "zui-0.1.0-8b_52bwhAQAcVH_rvr4RgNfH5cRQMugH5qTusSBgh8gd",
+            .hash = "zui-0.1.0-8b_52XsnAQBHIEiK-foosg2W3LFYIilepl454BjCxuWu",
+        },
+        .ztext = .{
+            .url = "https://github.com/Canadadry/ztext/archive/refs/heads/master.tar.gz",
+            .hash = "ztext-0.1.0-WIYmmwBsAAAOqJ2w7eJxNuv-Z3tK5DLY9jJAhMc8Nq4G",
         },
     },
     .paths = .{""},
