@@ -7,20 +7,26 @@ const rl = @cImport({
 
 const FontPainter = struct {
     pub fn measure_rune(_: *const @This(), rune: u32, size: u32, font: rl.struct_Font) u32 {
-        const index = font.GetGlyphIndex(rune);
-        const scaleFactor = size / font.baseSize;
+        const index: usize = @intCast(font.GetGlyphIndex(@intCast(rune)));
+        const scaleFactor = @as(f32, @floatFromInt(size)) / @as(f32, @floatFromInt(font.baseSize));
         var glyphWidth: f32 = 0;
         if (rune != '\n') {
-            glyphWidth = font.glyphs[index].advanceX;
+            glyphWidth = @as(f32, @floatFromInt(font.glyphs[index].advanceX));
             if (glyphWidth == 0) {
                 glyphWidth = font.recs[index].width;
             }
             glyphWidth *= scaleFactor;
         }
-        return glyphWidth;
+        return @intFromFloat(glyphWidth);
     }
     pub fn draw_rune(_: *@This(), x: u32, y: u32, cp: u32, size: u32, font: rl.struct_Font) void {
-        rl.DrawTextCodepoint(font, cp, .{ .x = x, .y = y }, size, rl.WHITE);
+        rl.DrawTextCodepoint(
+            font,
+            @intCast(cp),
+            .{ .x = @floatFromInt(x), .y = @floatFromInt(y) },
+            @floatFromInt(size),
+            rl.WHITE,
+        );
     }
 };
 
@@ -28,39 +34,40 @@ pub const Painter = union(enum) {
     none: struct {},
     rect: struct { color: rl.struct_Color },
     text: struct {
+        len: usize,
         text: [255:0]u8,
         color: rl.struct_Color,
         font: ztext.Text.Font(FontPainter, .{}, rl.struct_Font, .{}),
     },
     img: rl.struct_Texture,
     pub fn measure_content_fn(self: *@This()) [2]i32 {
-        return switch (self) {
+        return switch (self.*) {
             .none => .{ 0, 0 },
             .rect => .{ 0, 0 },
             .img => |i| .{ i.width, i.height },
             .text => |t| {
-                const box = t.font.measureText(t.text, 0);
-                return .{ box.x, box.y };
+                const box = t.font.measureText(t.text[0..], 0);
+                return .{ @intCast(box.x), @intCast(box.y) };
             },
         };
     }
     pub fn wrap_content_fn(self: *@This(), width: i32) i32 {
-        return switch (self) {
+        return switch (self.*) {
             .none => 0,
             .rect => 0,
-            .img => |i| width * i.height / i.width,
-            .text => |t| {
-                t.font.measureText(t.text, width).y;
-            },
+            .img => |i| @intFromFloat(
+                @as(f32, @floatFromInt(width)) * @as(f32, @floatFromInt(i.height)) / @as(f32, @floatFromInt(i.width)),
+            ),
+            .text => |t| @intCast(t.font.measureText(t.text[0..], @intCast(width)).y),
         };
     }
     pub fn draw(self: *@This(), x: u32, y: u32, w: u32, h: u32) void {
-        switch (self) {
+        switch (self.*) {
             .none => {},
-            .rect => |r| rl.DrawRectangle(x, y, w, h, r.color),
-            .img => |i| rl.DrawTextureEx(i, .{ .x = x, .y = y }, 0, 0, rl.WHITE),
+            .rect => |r| rl.DrawRectangle(@intCast(x), @intCast(y), @intCast(w), @intCast(h), r.color),
+            .img => |i| rl.DrawTextureEx(i, .{ .x = @floatFromInt(x), .y = @floatFromInt(y) }, 0, 0, rl.WHITE),
             .text => |t| {
-                t.font.draw(t.text, .{ .x = x, .y = y, .width = w, .height = h });
+                t.font.draw(t.text[0..t.len], .{ .x = x, .y = y, .width = w, .height = h });
             },
         }
     }
@@ -81,10 +88,22 @@ pub fn Img(source: [:0]const u8) Painter {
 }
 
 pub fn Txt(txt: [:0]const u8) Painter {
-    var p = Painter{ .text = .{
-        .text = std.mem.zeroes([255:0]u8),
-        .font = rl.GetFontDefault(),
-    } };
+    var p = Painter{
+        .text = .{
+            .len = txt.len,
+            .text = std.mem.zeroes([255:0]u8),
+            .color = rl.DARKGRAY,
+            .font = ztext.Text.Font(FontPainter, .{}, rl.struct_Font, .{}){
+                .size = 20,
+                .spacing = 2,
+                .familly = rl.GetFontDefault(),
+                .@"align" = .{
+                    .x = .begin,
+                    .y = .begin,
+                },
+            },
+        },
+    };
     const len = @min(txt.len, 254);
     @memcpy(p.text.text[0..len], txt[0..len]);
     p.text.text[len] = 0;
@@ -93,46 +112,45 @@ pub fn Txt(txt: [:0]const u8) Painter {
 
 pub fn main() !void {
     const alloc = std.heap.page_allocator;
+    rl.InitWindow(800, 600, "hello raylib");
+    defer rl.CloseWindow();
+    rl.SetTargetFPS(60);
 
-    const ui = zui.Builder.Builder(Painter, Painter{ .none = .{} });
+    const uib = zui.Builder.Builder(Painter, Painter{ .none = .{} });
 
-    const root = ui.node("col gap-10 p-10 w-400 h-300", Rect(rl.RED), &.{
-        ui.node("row gap-10 grow-x", None(), &.{
-            ui.leaf("w-120 h-50", Txt("btn-a")),
-            ui.leaf("w-120 h-50", Txt("btn-b")),
+    const root = uib.node("col gap-10 p-10 w-400 h-300", Rect(rl.RED), &.{
+        uib.node("row gap-10 grow-x", Rect(rl.GREEN), &.{
+            uib.leaf("w-120 h-50", Txt("btn-a")),
+            uib.leaf("w-120 h-50", Txt("btn-b")),
         }),
-        ui.node("row gap-10 grow-x", None(), &.{
-            ui.leaf("grow h-200", Txt("canvas")),
-            ui.leaf("w-150 h-200", Txt("sidebar")),
+        uib.node("row gap-10 grow-x", Rect(rl.BLUE), &.{
+            uib.leaf("grow h-200", Txt("canvas")),
+            uib.leaf("w-150 h-200", Txt("sidebar")),
         }),
     });
 
-    var list = std.array_list.Managed(ui.Node(Painter, Painter{ .none = .{} })).init(alloc);
+    var list = std.array_list.Managed(zui.Ui.Node(Painter, Painter{ .none = .{} })).init(alloc);
     defer list.deinit();
-    try ui.build(root, &list);
+    try uib.build(root, &list);
 
-    var tree: zui.Ui.Tree(Painter, .{}) = .{};
+    var tree: zui.Ui.Tree(Painter, .{ .none = .{} }) = .{};
     tree.init(alloc);
     defer tree.deinit();
 
     try tree.nodes.appendSlice(list.items);
     try tree.compute(0);
 
-    rl.InitWindow(800, 600, "hello raylib");
-    defer rl.CloseWindow();
-    rl.SetTargetFPS(60);
-
     while (!rl.WindowShouldClose()) {
         rl.BeginDrawing();
         defer rl.EndDrawing();
 
         rl.ClearBackground(rl.RAYWHITE);
-        for (tree.commands.items) |cmd| {
+        for (tree.commands.items) |*cmd| {
             const x: c_int = @intCast(cmd.x);
             const y: c_int = @intCast(cmd.y);
             const w: c_int = @intCast(cmd.w);
             const h: c_int = @intCast(cmd.h);
-            cmd.painter.draw(x, y, w, h);
+            cmd.painter.draw(@intCast(x), @intCast(y), @intCast(w), @intCast(h));
         }
     }
 }
